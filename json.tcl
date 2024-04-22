@@ -425,6 +425,7 @@ test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT
 test_json_get $json "$.policy.signature-settings.signatureStaging" "false"
 test_json_get $json "$.policy.blocking-settings.violations\[1\].name" "\"VIOL_SESSION_AWARENESS\""
 test_json_get $json "$.policy.policy-builder-server-technologies.enableServerTechnologiesDetection" "true"
+test_json_get $json "$.policy.urls\[2\].urlContentProfiles\[0\].headerValue" "\"text/html\""
 
 puts "\nTest 6"
 test_json_decode "\"test\"test\"" "test\"test"
