@@ -16,9 +16,9 @@ proc test_json_get { json path expected } {
     puts "- path: $path"
     set token [call json::json_get_tok $json $path]
     if { ($token eq "") || ($token ne $expected && $expected ne "") } {
-        return "  ERROR: found: $token, expected: $expected"
+        return "<tr><td>ERROR</td><td>found: $token, expected: $expected</td></tr>"
     }
-    return "  OK: found: $token, expected: $expected"
+    return "<tr><td>OK</td><td>found: $token, expected: $expected</td></tr>"
 }
 
 ###############################################################################
@@ -31,16 +31,16 @@ proc test_json_decode { token expected } {
     puts "- decode: $token"
     set decoded [call json::json_decode_str "\"test\"test\""]
     if { $decoded eq "test\"test" } {
-        return "  OK: decoded $decoded, expected: $expected"
+        return "<tr><td>OK</td><td>decoded $decoded, expected: $expected</td></tr>"
     }
-    return "  ERROR: decoded $decoded, expected: $expected"
+    return "<tr><td>ERROR</td><td>decoded $decoded, expected: $expected</td></tr>"
 }
 
 when HTTP_REQUEST priority 100 {
-    set response ""
-    append response "Test 1"
+    set response "<html><head><title>Json Test</title></head><body>"
+    append response "<h2>Test 1</h2>"
     set json "{\"text1\":\"string1\",\"object1\":{\"text2\":\"string2\",\"array\":\[\"mem1\",\"mem2\"\],\"bool1\":false},\"num1\":1,\"bool2\":true}"
-    append response "$json"
+    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.text1" "\"string1\""]
     append response [call test_json_get $json "$.object1.text2" "\"string2\""]
     append response [call test_json_get $json "$.object1.bool1" "false"]
@@ -50,30 +50,37 @@ when HTTP_REQUEST priority 100 {
     append response [call test_json_get $json "$.object1.array" ""]
     append response [call test_json_get $json "$.object1.array\[0\]" "\"mem1\""]
     append response [call test_json_get $json "$.object1.array\[1\]" "\"mem2\""]
+    append response "</table>"
 
-    append response "\nTest 2"
+    append response "<h2>Test 2</h2>"
     set json "{\"text1\":\"string1\",\"object1\":{\"text2\":\"string2\",\"array1\":\[\"mem1\",\"mem2\"\]},\"num1\":1,\"bool2\":true}"
-    append response "$json"
+    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.num1" "1"]
+    append response "</table>"
 
-    append response "\nTest 3"
+    append response "<h2>Test 3</h2>"
     set json "{\"object1\": {\"array1\":\[{\"v1\":\"mem1\",\"v2\":\"mem2\"},{\"v3\":\"mem3\"}\],\"num1\":1},\"bool2\":true}"
-    append response "$json"
+    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.object1.num1" "1"]
     append response [call test_json_get $json "$.object1.array1" ""]
     append response [call test_json_get $json "$.object1.array1\[0\].v1" "\"mem1\""]
     append response [call test_json_get $json "$.object1.array1\[0\].v2" "\"mem2\""]
     append response [call test_json_get $json "$.object1.array1\[1\].v3" "\"mem3\""]
     append response [call test_json_get $json "$.bool2" "true"]
+    append response "</table>"
 
-    append response "\nTest 4"
+    append response "<h2>Test 4</h2>"
     set json "{\"key1\":\"val\\\"ue1\",\"key\\n2\":\"value2\"}"
-    append response "$json"
+    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.key1" "\"val\\\"ue1\""]
     append response [call test_json_get $json "$.key\\n2" "\"value2\""]
+    append response "</table>"
 
-    append response "\nTest 5"
+    append response "<h2>Test 5</h2>"
+    append response "<table>"
     append response [call test_json_decode "\"test\"test\"" "test\"test"]
+    append response "</table>"
 
-    HTTP::respond 200 content $response "Content-Type" "text/plain"
+    append response "</body></html>"
+    HTTP::respond 200 content $response "Content-Type" "text/html"
 }
