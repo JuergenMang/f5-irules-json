@@ -19,10 +19,12 @@
 #                    -1: Json nesting is too deep
 #                    -2: Invalid Json
 #                    -3: Key not found
+#                    -4: Invalid/Unsupported JsonPath expression
 proc json_get { buffer path toklen_ref } {
     set JSON_TOO_DEEP -1
     set JSON_INVALID -2
     set JSON_NOT_FOUND -3
+    set JSON_PATH_INVALID -4
     set JSON_MAX_DEPTH 10
     set JSON_WHITESPACES [list " " "\t" "\n" "\r"]
     set JSON_ESCAPES [list "b" "f" "n" "r" "t" "\\" "\""]
@@ -83,7 +85,11 @@ proc json_get { buffer path toklen_ref } {
                         set ci 0
                         # Convert string to number
                         for { set ei 0 } { ([set p [string index $path $pos]] ne "\]") && ($pos < $path_pos_max) } { incr pos } {
-                            set ei [expr { $ei * 10 + $p }]
+                            if { [string is double $p] } {
+                                set ei [expr { $ei * 10 + $p }]
+                            } else {
+                                return $JSON_PATH_INVALID
+                            }
                         }
                         if { $pos < $path_pos_max } {
                             incr pos

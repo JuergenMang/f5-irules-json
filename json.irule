@@ -13,6 +13,7 @@ when RULE_INIT priority 500 {
     set static::JSON_TOO_DEEP -1
     set static::JSON_INVALID -2
     set static::JSON_NOT_FOUND -3
+    set static::JSON_PATH_INVALID -4
     set static::JSON_WHITESPACES [list " " "\t" "\n" "\r"]
     set static::JSON_ESCAPES [list "b" "f" "n" "r" "t" "\\" "\""]
 }
@@ -28,6 +29,7 @@ when RULE_INIT priority 500 {
 #                    -1: Json nesting is too deep
 #                    -2: Invalid Json
 #                    -3: Key not found
+#                    -4: Invalid/Unsupported JsonPath expression
 proc json_get { buffer path toklen_ref } {
     upvar $toklen_ref toklen  ; # Saves the length of the found token
     set expecting "JSON_EXPECT_VALUE"
@@ -85,7 +87,11 @@ proc json_get { buffer path toklen_ref } {
                         set ci 0
                         # Convert string to number
                         for { set ei 0 } { ([set p [string index $path $pos]] ne "\]") && ($pos < $path_pos_max) } { incr pos } {
-                            set ei [expr { $ei * 10 + $p }]
+                            if { [string is double $p] } {
+                                set ei [expr { $ei * 10 + $p }]
+                            } else {
+                                return $static::JSON_PATH_INVALID
+                            }
                         }
                         if { $pos < $path_pos_max } {
                             incr pos
