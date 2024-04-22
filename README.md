@@ -53,7 +53,9 @@ set decoded [call json::json_decode_str { $token }]
 
 ## Test
 
-Attach the `test.irule` to a Virtual Server with an associated http profile and send a http request to it.
+1. Create an iFile `test-json` from the `test-json.ifile`.
+2. Attach the `test.irule` to a Virtual Server with an associated http profile.
+3. Send a http request to it.
 
 ## License
 

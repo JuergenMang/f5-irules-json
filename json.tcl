@@ -66,6 +66,7 @@ proc json_get { buffer path toklen_ref } {
                         return $JSON_TOO_DEEP
                     }
                     if { ($depth == $ed) && ($p eq ".") && ($ci == $ei) } {
+                        # If we start the object, reset array indices
                         incr ed
                         incr pos
                         set ci -1
@@ -106,6 +107,7 @@ proc json_get { buffer path toklen_ref } {
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\[" } {
                         return $JSON_INVALID
                     }
+                    set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
@@ -208,12 +210,13 @@ proc json_get { buffer path toklen_ref } {
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\{" } {
                         return $JSON_INVALID
                     }
+                    set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
                         return $j
                     }
-                    set expecting $S_COMMA_OR_EDO
+                    set expecting "JSON_EXPECT_COMMA_OR_EOO"
                     if { ($depth == $ed) && ($ei >= 0) } {
                         incr ci
                     }
@@ -253,6 +256,7 @@ proc json_get { buffer path toklen_ref } {
                     if { ($c eq "\}") && ([lindex $nesting [expr {$depth - 1}]] ne "\{") } {
                         return $JSON_INVALID
                     }
+                    set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
@@ -347,9 +351,14 @@ proc json_decode_str { token } {
 # @returns {number} 0 on success, else 1
 proc test_json_get { json path expected } {
     puts "- path: $path"
-    set token [json_get_tok $json $path]
+    set len -1 ; # Length of returned token
+    set token ""
+    set idx [json_get $json $path len]
+    if { $idx >= 0 } {
+        set token [string range $json $idx [expr {$idx + $len - 1}]]
+    }
     if { ($token eq "") || ($token ne $expected && $expected ne "") } {
-        puts "  ERROR: found: $token, expected: $expected"
+        puts "  ERROR: $idx, found: $token, expected: $expected"
         return 1
     }
     puts "  OK: found: $token, expected: $expected"
@@ -408,4 +417,14 @@ test_json_get $json "$.key1" "\"val\\\"ue1\""
 test_json_get $json "$.key\\n2" "\"value2\""
 
 puts "\nTest 5"
+set fp [open "test-json.ifile" r]
+set json [read $fp]
+close $fp
+puts "Large json file"
+test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""
+test_json_get $json "$.policy.signature-settings.signatureStaging" "false"
+test_json_get $json "$.policy.blocking-settings.violations\[1\].name" "\"VIOL_SESSION_AWARENESS\""
+test_json_get $json "$.policy.policy-builder-server-technologies.enableServerTechnologiesDetection" "true"
+
+puts "\nTest 6"
 test_json_decode "\"test\"test\"" "test\"test"

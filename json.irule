@@ -108,6 +108,7 @@ proc json_get { buffer path toklen_ref } {
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\[" } {
                         return $static::JSON_INVALID
                     }
+                    set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
@@ -210,12 +211,13 @@ proc json_get { buffer path toklen_ref } {
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\{" } {
                         return $static::JSON_INVALID
                     }
+                    set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
                         return $j
                     }
-                    set expecting $S_COMMA_OR_EDO
+                    set expecting "JSON_EXPECT_COMMA_OR_EOO"
                     if { ($depth == $ed) && ($ei >= 0) } {
                         incr ci
                     }
@@ -255,6 +257,7 @@ proc json_get { buffer path toklen_ref } {
                     if { ($c eq "\}") && ([lindex $nesting [expr {$depth - 1}]] ne "\{") } {
                         return $$static::JSON_INVALID
                     }
+                    set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]

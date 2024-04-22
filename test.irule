@@ -13,12 +13,16 @@
 # @param {string} expected Expected value
 # @returns {string} Test result
 proc test_json_get { json path expected } {
-    puts "- path: $path"
-    set token [call json::json_get_tok $json $path]
-    if { ($token eq "") || ($token ne $expected && $expected ne "") } {
-        return "<tr><td>ERROR</td><td>found: $token, expected: $expected</td></tr>"
+    set len -1 ; # Length of returned token
+    set token ""
+    set idx [call json::json_get $json $path len]
+    if { $idx >= 0 } {
+        set token [string range $json $idx [expr {$idx + $len - 1}]]
     }
-    return "<tr><td>OK</td><td>found: $token, expected: $expected</td></tr>"
+    if { ($token eq "") || ($token ne $expected && $expected ne "") } {
+        return "<tr><td colspan=\"2\">$path</td></tr><tr><td>ERROR: $idx</td><td>found: $token, expected: $expected</td></tr>"
+    }
+    return "<tr><td colspan=\"2\">$path</td></tr><tr><td>OK: $idx</td><td>found: $token, expected: $expected</td></tr>"
 }
 
 ###############################################################################
@@ -77,6 +81,16 @@ when HTTP_REQUEST priority 100 {
     append response "</table>"
 
     append response "<h2>Test 5</h2>"
+    set json [ifile get "test-json"]
+    append response "<table><tr><td colspan=\"2\">Large json file</td></tr>"
+    append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]
+    append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]
+    append response [call test_json_get $json "$.policy.signature-settings.signatureStaging" "false"]
+    append response [call test_json_get $json "$.policy.blocking-settings.violations\[1\].name" "\"VIOL_SESSION_AWARENESS\""]
+    append response [call test_json_get $json "$.policy.policy-builder-server-technologies.enableServerTechnologiesDetection" "true"]
+    append response "</table>"
+
+    append response "<h2>Test 6</h2>"
     append response "<table>"
     append response [call test_json_decode "\"test\"test\"" "test\"test"]
     append response "</table>"
