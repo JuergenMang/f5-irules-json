@@ -27,7 +27,7 @@ set token [call json::json_get_tok { $json $path }]
 set type [call json::json_get_type { $token }]
 
 # Decodes string token
-set decoded [call json::json_decode { $token }]
+set decoded [call json::json_decode_str { $token }]
 ```
 
 ## Test

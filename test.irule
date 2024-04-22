@@ -29,7 +29,7 @@ proc test_json_get { json path expected } {
 # @returns {string} Test result
 proc test_json_decode { token expected } {
     puts "- decode: $token"
-    set decoded [call json::json_decode "\"test\"test\""]
+    set decoded [call json::json_decode_str "\"test\"test\""]
     if { $decoded eq "test\"test" } {
         return "  OK: decoded $decoded, expected: $expected"
     }

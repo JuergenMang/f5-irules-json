@@ -305,7 +305,7 @@ proc json_get_type { token } {
 #
 # @param {string} token Json string to decode
 # @returns {string} Decoded Json string
-proc json_decode { token } {
+proc json_decode_str { token } {
     set JSON_ESCAPES [list "b" "f" "n" "r" "t" "\\" "\""]
     set JSON_ESCAPES_DECODED [list "\b" "\f" "\n" "\r" "\t" "\\" "\""]
     set len [expr {[string length $token] - 1}]
@@ -358,7 +358,7 @@ proc test_json_get { json path expected } {
 # @returns {number} 0 on success, else 1
 proc test_json_decode { token expected } {
     puts "- decode: $token"
-    set decoded [json_decode "\"test\"test\""]
+    set decoded [json_decode_str "\"test\"test\""]
     if { $decoded eq "test\"test" } {
         puts "  OK: decoded $decoded, expected: $expected"
         return 0

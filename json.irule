@@ -307,7 +307,7 @@ proc json_get_type { token } {
 #
 # @param {string} token Json string to decode
 # @returns {string} Decoded Json string
-proc json_decode { token } {
+proc json_decode_str { token } {
     set len [expr {[string length $token] - 1}]
     set decoded ""
     for { set i 1 } { $i < $len } { incr i } {
