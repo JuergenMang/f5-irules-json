@@ -1,0 +1,79 @@
+###############################################################################
+# Testsuite for the Json library for the F5 iRules language to parse and decode Json.
+#
+# SPDX-License-Identifier: GPL-2.0-only
+# (C) 2024 Juergen Mang <juergen.mang@sec.axians.de>
+###############################################################################
+
+###############################################################################
+# Simple json_get test function
+#
+# @param {string} json Json string to parse
+# @param {string} path JsonPath expression
+# @param {string} expected Expected value
+# @returns {string} Test result
+proc test_json_get { json path expected } {
+    puts "- path: $path"
+    set token [call json::json_get_tok $json $path]
+    if { ($token eq "") || ($token ne $expected && $expected ne "") } {
+        return "  ERROR: found: $token, expected: $expected"
+    }
+    return "  OK: found: $token, expected: $expected"
+}
+
+###############################################################################
+# Simple json decode test function
+#
+# @param {string} token Json string to decode
+# @param {string} expected Expected value
+# @returns {string} Test result
+proc test_json_decode { token expected } {
+    puts "- decode: $token"
+    set decoded [call json::json_decode "\"test\"test\""]
+    if { $decoded eq "test\"test" } {
+        return "  OK: decoded $decoded, expected: $expected"
+    }
+    return "  ERROR: decoded $decoded, expected: $expected"
+}
+
+when HTTP_REQUEST priority 100 {
+    set response ""
+    append response "Test 1"
+    set json "{\"text1\":\"string1\",\"object1\":{\"text2\":\"string2\",\"array\":\[\"mem1\",\"mem2\"\],\"bool1\":false},\"num1\":1,\"bool2\":true}"
+    append response "$json"
+    append response [call test_json_get $json "$.text1" "\"string1\""]
+    append response [call test_json_get $json "$.object1.text2" "\"string2\""]
+    append response [call test_json_get $json "$.object1.bool1" "false"]
+    append response [call test_json_get $json "$.num1" "1"]
+    append response [call test_json_get $json "$.bool2" "true"]
+    append response [call test_json_get $json "$.object1" ""]
+    append response [call test_json_get $json "$.object1.array" ""]
+    append response [call test_json_get $json "$.object1.array\[0\]" "\"mem1\""]
+    append response [call test_json_get $json "$.object1.array\[1\]" "\"mem2\""]
+
+    append response "\nTest 2"
+    set json "{\"text1\":\"string1\",\"object1\":{\"text2\":\"string2\",\"array1\":\[\"mem1\",\"mem2\"\]},\"num1\":1,\"bool2\":true}"
+    append response "$json"
+    append response [call test_json_get $json "$.num1" "1"]
+
+    append response "\nTest 3"
+    set json "{\"object1\": {\"array1\":\[{\"v1\":\"mem1\",\"v2\":\"mem2\"},{\"v3\":\"mem3\"}\],\"num1\":1},\"bool2\":true}"
+    append response "$json"
+    append response [call test_json_get $json "$.object1.num1" "1"]
+    append response [call test_json_get $json "$.object1.array1" ""]
+    append response [call test_json_get $json "$.object1.array1\[0\].v1" "\"mem1\""]
+    append response [call test_json_get $json "$.object1.array1\[0\].v2" "\"mem2\""]
+    append response [call test_json_get $json "$.object1.array1\[1\].v3" "\"mem3\""]
+    append response [call test_json_get $json "$.bool2" "true"]
+
+    append response "\nTest 4"
+    set json "{\"key1\":\"val\\\"ue1\",\"key\\n2\":\"value2\"}"
+    append response "$json"
+    append response [call test_json_get $json "$.key1" "\"val\\\"ue1\""]
+    append response [call test_json_get $json "$.key\\n2" "\"value2\""]
+
+    append response "\nTest 5"
+    append response [call test_json_decode "\"test\"test\"" "test\"test"]
+
+    HTTP::respond 200 content $response "Content-Type" "text/plain"
+}
