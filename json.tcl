@@ -46,7 +46,7 @@ proc json_get { buffer path toklen_ref } {
 
     set toklen 0
     if { [string index $path 0] ne "$" } {
-        return $JSON_INVALID
+        return $JSON_PATH_INVALID
     }
 
     for { set i 0 } { $i < $buffer_len } { incr i } {
