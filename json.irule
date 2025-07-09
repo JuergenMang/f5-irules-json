@@ -68,6 +68,7 @@ proc json_get { buffer path toklen_ref } {
                         return $static::JSON_TOO_DEEP
                     }
                     if { ($depth == $ed) && ($p eq ".") && ($ci == $ei) } {
+                        # If we start the object, reset array indices
                         incr ed
                         incr pos
                         set ci -1
