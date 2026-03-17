@@ -235,7 +235,7 @@ proc json_get { buffer path toklen_ref } {
             }
             "JSON_EXPECT_COMMA_OR_EOO" {
                 if { $depth <= 0 } {
-                    return $$static::JSON_INVALID
+                    return $static::JSON_INVALID
                 } elseif { $c eq "," } {
                     if { [lindex $nesting [expr {$depth - 1}]] eq "\{" } {
                         set expecting "JSON_EXPECT_KEY"
@@ -244,19 +244,19 @@ proc json_get { buffer path toklen_ref } {
                     }
                 } elseif { ($c eq "\]") || ($c eq "\}") } {
                     if { ($depth == $ed) && ($c eq "\}") && ([string index $path [expr {$pos - 1}]] eq ".") } {
-                        return $$static::JSON_NOT_FOUND
+                        return $static::JSON_NOT_FOUND
                     }
                     if { ($depth == $ed) && ($c eq "\]") && ([string index $path [expr {$pos - 1}]] eq ",") } {
-                        return $$static::JSON_NOT_FOUND
+                        return $static::JSON_NOT_FOUND
                     }
                     if { ($depth == $ed) && ($ci != $ei) } {
-                        return $$static::JSON_NOT_FOUND
+                        return $static::JSON_NOT_FOUND
                     }
                     if { ($c eq "\]") && ([lindex $nesting [expr {$depth - 1}]] ne "\[") } {
-                        return $$static::JSON_INVALID
+                        return $static::JSON_INVALID
                     }
                     if { ($c eq "\}") && ([lindex $nesting [expr {$depth - 1}]] ne "\{") } {
-                        return $$static::JSON_INVALID
+                        return $static::JSON_INVALID
                     }
                     set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
@@ -268,12 +268,12 @@ proc json_get { buffer path toklen_ref } {
                         incr ci
                     }
                 } else {
-                    return $$static::JSON_INVALID
+                    return $static::JSON_INVALID
                 }
             }
         }
     }
-    return $$static::JSON_NOT_FOUND
+    return $static::JSON_NOT_FOUND
 }
 
 ###############################################################################
@@ -326,7 +326,7 @@ proc json_decode_str { token } {
             # Json escape
             set nc [string index $token [expr {$i + 1}]]
             if { [set idx [lsearch -exact $static::JSON_ESCAPES $nc]] > -1 } {
-                append decoded [lindex $static::JSON_ESCAPES_DECODED $idx]
+                append decoded [lindex $static::JSON_ESCAPES $idx]
             } else {
                 # Ignore invalid escape value
             }
