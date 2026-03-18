@@ -6,6 +6,11 @@ This library is a rewrite of the Json parser from [mongoose](https://github.com/
 
 It can fetch Json tokens from any valid Json by [JsonPath expressions](https://github.com/json-path/JsonPath).
 
+## Limitations
+
+- Unicode escapes are not supported
+- Lax number parsing - no exponent support
+
 ## Supported JsonPath operators
 
 Only the dot-notation and a subset of operators are supported.
@@ -33,22 +38,24 @@ set path "$.object1.key"
 #   -2: Invalid Json
 #   -3: Key not found
 #   -4: Invalid/Unsupported JsonPath expression
-set len -1 ; # This variable is populated with the length of the found token.
-set idx [call json::json_get { $json $path len }]
+set token [call json::json_get $json $path ]
+set idx [lindex $token 0]
+set len [lindex $token 1]
+set token_value [string range $json $idx [expr {$idx + $len - 1}]]
 
 # Get the token described by path.
 # - String tokens are enclosed by quotes.
 # - Array tokens are enclosed by square braces.
 # - Object tokens are enclosed by curly braces.
-set token [call json::json_get_tok { $json $path }]
+set token_value [call json::json_get_tok $json $path]
 
 # Get the type of the token.
 # This is a simply lookup of the first char of the token.
 # Type can be: string, array, object, false, true, null, number or invalid
-set type [call json::json_get_type { $token }]
+set type [call json::json_get_type $token_value ]
 
 # Decodes a string token
-set decoded [call json::json_decode_str { $token }]
+set decoded [call json::json_decode_str $token_value ]
 ```
 
 ## Test
@@ -59,6 +66,6 @@ set decoded [call json::json_decode_str { $token }]
 
 ## License
 
-(C) 2024 Juergen Mang <juergen.mang@sec.axians.de>
+(C) 2024-2026 Juergen Mang <juergen.mang@sec.axians.de>
 
-SPDX-License-Identifier: GPL-2.0-only
+SPDX-License-Identifier: GPL-3.0-or-later
