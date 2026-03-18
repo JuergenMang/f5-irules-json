@@ -4,8 +4,8 @@
 # This library is inspired by the Json parser from mongoose:
 # https://github.com/cesanta/mongoose
 #
-# SPDX-License-Identifier: GPL-2.0-only
-# (C) 2024 Juergen Mang <juergen.mang@sec.axians.de>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# (C) 2024-2026 Juergen Mang <juergen.mang@sec.axians.de>
 ###############################################################################
 
 when RULE_INIT priority 500 {
@@ -14,25 +14,29 @@ when RULE_INIT priority 500 {
     set static::JSON_INVALID -2
     set static::JSON_NOT_FOUND -3
     set static::JSON_PATH_INVALID -4
-    set static::JSON_WHITESPACES [list " " "\t" "\n" "\r"]
     set static::JSON_ESCAPES [list "b" "f" "n" "r" "t" "\\" "\""]
+
+    set static::JSON_EXPECT_VALUE 0
+    set static::JSON_EXPECT_KEY 1
+    set static::JSON_EXPECT_COLON 2
+    set static::JSON_EXPECT_COMMA_OR_EOO 3
 }
 
 ###############################################################################
-# Gets the index and token length for an json key defined by an JsonPath expression in dot notation.
+# Returns the index and token length (as a list) for an json key defined by an
+# JsonPath expression in dot notation.
 # The token type can be easily determined by looking at the first character.
 #
 # @param {string} buffer Json string to parse
 # @param {string} path JsonPath expression
-# @param {integer} toklen_ref Variable reference to set the length of returned token
 # @returns {integer} Index of found token in buffer on success, else
 #                    -1: Json nesting is too deep
 #                    -2: Invalid Json
 #                    -3: Key not found
 #                    -4: Invalid/Unsupported JsonPath expression
-proc json_get { buffer path toklen_ref } {
-    upvar $toklen_ref toklen  ; # Saves the length of the found token
-    set expecting "JSON_EXPECT_VALUE"
+# @returns {integer} Length of found token or -1 on error
+proc json_get { buffer path } {
+    set expecting $static::JSON_EXPECT_VALUE
     set buffer_len [string length $buffer]
     set buffer_pos_max [expr {$buffer_len - 1}]
     set path_len [string length $path]
@@ -46,26 +50,32 @@ proc json_get { buffer path toklen_ref } {
     set ci -1                 ; # Current index in array
     set ei -1                 ; # Expected index in array
 
-    set toklen 0
+    set toklen -1
     if { [string index $path 0] ne "$" } {
-        return $static::JSON_PATH_INVALID
+        return [list $static::JSON_PATH_INVALID -1]
     }
 
     for { set i 0 } { $i < $buffer_len } { incr i } {
         set c [string index $buffer $i]  ; # Current char in buffer
         set p [string index $path $pos]  ; # Current char in path
-        if { [lsearch -exact $static::JSON_WHITESPACES $c] > -1 } {
-            continue
+        switch -exact -- $c {
+            " " -
+            "\t" -
+            "\n" -
+            "\r" {
+                continue
+            }
         }
         switch -exact -- $expecting {
-            "JSON_EXPECT_VALUE" {
+            0 {
+                # JSON_EXPECT_VALUE
                 #log local0. "\tV path:$path, pos:$pos, depth:$depth, ed:$ed, ci:$ci, ei:$ei"
                 if { $depth == $ed } {
                     set j $i
                 }
                 if { $c eq "\{" } {
                     if { $depth > $static::JSON_MAX_DEPTH } {
-                        return $static::JSON_TOO_DEEP
+                        return [list $static::JSON_TOO_DEEP -1]
                     }
                     if { ($depth == $ed) && ($p eq ".") && ($ci == $ei) } {
                         # If we start the object, reset array indices
@@ -76,11 +86,11 @@ proc json_get { buffer path toklen_ref } {
                     }
                     lappend nesting $c
                     incr depth
-                    set expecting "JSON_EXPECT_KEY"
+                    set expecting $static::JSON_EXPECT_KEY
                     continue
                 } elseif { $c eq "\[" } {
                     if { $depth > $static::JSON_MAX_DEPTH } {
-                        return $static::JSON_TOO_DEEP
+                        return [list $static::JSON_TOO_DEEP -1]
                     }
                     if { ($depth == $ed) && ($p eq "\[") && ($ei == $ci) } {
                         incr ed
@@ -91,7 +101,7 @@ proc json_get { buffer path toklen_ref } {
                             if { [string is double $p] } {
                                 set ei [expr { $ei * 10 + $p }]
                             } else {
-                                return $static::JSON_PATH_INVALID
+                                return [list $static::JSON_PATH_INVALID $toklen]
                             }
                         }
                         if { $pos < $path_pos_max } {
@@ -104,16 +114,16 @@ proc json_get { buffer path toklen_ref } {
                 } elseif { ($c eq "\]") && ($depth > 0) } {
                     # Empty array
                     if { ($depth == $ed) && ($ci != $ei) } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND -1]
                     }
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\[" } {
-                        return $static::JSON_INVALID
+                        return [list $static::JSON_INVALID -1]
                     }
                     set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
-                        return $j
+                        return [list $j $toklen]
                     }
                 } elseif { ($c eq "t") && ([string range $buffer $i [expr {$i + 3}]] eq "true") } {
                     set i [expr {$i + 3}]
@@ -135,7 +145,7 @@ proc json_get { buffer path toklen_ref } {
                             # Json escape
                             set nc [string index $buffer [expr {$i + 1}]]
                             if { [lsearch -exact $static::JSON_ESCAPES $nc] == -1 } {
-                                return $static::JSON_INVALID
+                                return [list $static::JSON_INVALID $toklen]
                             }
                             incr i
                         } elseif { $c eq "\"" } {
@@ -144,21 +154,22 @@ proc json_get { buffer path toklen_ref } {
                         incr i
                     }
                     if { $i == $buffer_pos_max } {
-                        return $static::JSON_INVALID
+                        return [list $static::JSON_INVALID -1]
                     }
                 } else {
-                    return $static::JSON_INVALID
+                    return [list $static::JSON_INVALID -1]
                 }
                 if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                     set toklen [expr {$i - $j + 1}]
-                    return $j
+                    return [list $j $toklen]
                 }
                 if { ($depth == $ed) && ($ei >= 0) } {
                     incr ci
                 }
-                set expecting "JSON_EXPECT_COMMA_OR_EOO"
+                set expecting $static::JSON_EXPECT_COMMA_OR_EOO
             }
-            "JSON_EXPECT_KEY" {
+            1 {
+                # JSON_EXPECT_KEY 
                 if { $c eq "\"" } {
                     set s [expr {$i + 1}]
                     set n 0
@@ -168,7 +179,7 @@ proc json_get { buffer path toklen_ref } {
                             # Json escape
                             set nc [string index $buffer [expr {$s + 1}]]
                             if { [lsearch -exact $static::JSON_ESCAPES $nc] == -1 } {
-                                return $static::JSON_INVALID
+                                return [list $static::JSON_INVALID $toklen]
                             }
                             incr s
                             incr n
@@ -179,17 +190,17 @@ proc json_get { buffer path toklen_ref } {
                         incr n
                     }
                     if { $s == $buffer_pos_max } {
-                        return $static::JSON_INVALID
+                        return [list $static::JSON_INVALID $toklen]
                     }
                     unset -- s
                     if { [expr {$i + $n}] == $buffer_pos_max } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND $toklen]
                     }
                     if { $depth < $ed } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND $toklen]
                     }
                     if { ($depth == $ed) && ([string index $path [expr {$pos - 1}]] ne ".") } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND $toklen]
                     }
                     #log local0. "\tK path:$path, pos:$pos, depth:$depth, n:$n, ed:$ed, ci:$ci, ei:$ei"
                     if { ($depth == $ed) && ([string index $path [expr {$pos - 1}]] eq ".") &&
@@ -203,77 +214,79 @@ proc json_get { buffer path toklen_ref } {
                         set pos [expr {$pos + $n}]
                     }
                     set i [expr {$i + $n + 1}]
-                    set expecting "JSON_EXPECT_COLON"
+                    set expecting $static::JSON_EXPECT_COLON
                 } elseif { $c eq "\}" } {
                     # Empty object
                     if { ($depth == $ed) && ($ci != $ei) } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND -1]
                     }
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\{" } {
-                        return $static::JSON_INVALID
+                        return [list $static::JSON_INVALID -1]
                     }
                     set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
-                        return $j
+                        return [list $j $toklen]
                     }
-                    set expecting "JSON_EXPECT_COMMA_OR_EOO"
+                    set expecting $static::JSON_EXPECT_COMMA_OR_EOO
                     if { ($depth == $ed) && ($ei >= 0) } {
                         incr ci
                     }
                 } else {
-                    return $static::JSON_INVALID
+                    return [list $static::JSON_INVALID $toklen]
                 }
             }
-            "JSON_EXPECT_COLON" {
+            2 {
+                # JSON_EXPECT_COLON
                 if { $c eq ":" } {
-                    set expecting "JSON_EXPECT_VALUE"
+                    set expecting $static::JSON_EXPECT_VALUE
                 } else {
-                    return $static::JSON_INVALID
+                    return [list $static::JSON_INVALID $toklen]
                 }
             }
-            "JSON_EXPECT_COMMA_OR_EOO" {
+            3 {
+                # JSON_EXPECT_COMMA_OR_EOO
                 if { $depth <= 0 } {
-                    return $static::JSON_INVALID
+                    return [list $static::JSON_INVALID -1]
                 } elseif { $c eq "," } {
                     if { [lindex $nesting [expr {$depth - 1}]] eq "\{" } {
-                        set expecting "JSON_EXPECT_KEY"
+                        set expecting $static::JSON_EXPECT_KEY
                     } else {
-                        set expecting "JSON_EXPECT_VALUE"
+                        set expecting $static::JSON_EXPECT_VALUE
                     }
                 } elseif { ($c eq "\]") || ($c eq "\}") } {
                     if { ($depth == $ed) && ($c eq "\}") && ([string index $path [expr {$pos - 1}]] eq ".") } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND $toklen]
                     }
                     if { ($depth == $ed) && ($c eq "\]") && ([string index $path [expr {$pos - 1}]] eq ",") } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND $toklen]
                     }
                     if { ($depth == $ed) && ($ci != $ei) } {
-                        return $static::JSON_NOT_FOUND
+                        return [list $static::JSON_NOT_FOUND $toklen]
                     }
                     if { ($c eq "\]") && ([lindex $nesting [expr {$depth - 1}]] ne "\[") } {
-                        return $static::JSON_INVALID
+                        return [list $static::JSON_INVALID $toklen]
                     }
                     if { ($c eq "\}") && ([lindex $nesting [expr {$depth - 1}]] ne "\{") } {
-                        return $static::JSON_INVALID
+                        return [list $static::JSON_INVALID $toklen]
                     }
                     set nesting [lrange $nesting 0 end-1]
                     set depth [expr {$depth - 1}]
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         set toklen [expr {$i - $j + 1}]
-                        return $j
+                        return [list $j $toklen]
                     }
                     if { ($depth == $ed) && ($ei >= 0) } {
                         incr ci
                     }
                 } else {
-                    return $static::JSON_INVALID
+                    return [list $static::JSON_INVALID $toklen]
                 }
             }
         }
     }
-    return $static::JSON_NOT_FOUND
+    return [list $static::JSON_NOT_FOUND $toklen]
 }
 
 ###############################################################################
@@ -283,8 +296,9 @@ proc json_get { buffer path toklen_ref } {
 # @param {number} path JsonPath expression
 # @returns {string} The extracted value or empty string on error
 proc json_get_tok { json path } {
-    set len -1 ; # Length of returned token
-    set idx [call json::json_get $json $path len]
+    set token [call json_get $json $path]
+    set idx [lindex $token 0]
+    set len [lindex $token 1]
     if { $idx >= 0 } {
         return [string range $json $idx [expr {$idx + $len - 1}]]
     }
@@ -325,10 +339,17 @@ proc json_decode_str { token } {
         if { $c eq "\\" } {
             # Json escape
             set nc [string index $token [expr {$i + 1}]]
-            if { [set idx [lsearch -exact $static::JSON_ESCAPES $nc]] > -1 } {
-                append decoded [lindex $static::JSON_ESCAPES $idx]
-            } else {
-                # Ignore invalid escape value
+            switch -exact -- $nc {
+                "b"  { append decoded "\b" }
+                "f"  { append decoded "\f" }
+                "n"  { append decoded "\n" }
+                "r"  { append decoded "\r" }
+                "t"  { append decoded "\t" }
+                "\\" { append decoded "\\" }
+                "\"" { append decoded "\"" }
+                "u" {
+                    # Not supported
+                }
             }
             # Skip next char
             incr i

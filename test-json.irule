@@ -1,8 +1,9 @@
 ###############################################################################
-# Testsuite for the Json library for the F5 iRules language to parse and decode Json.
+# Testsuite for the Json library for the F5 iRules language to parse and decode
+# Json.
 #
-# SPDX-License-Identifier: GPL-2.0-only
-# (C) 2024 Juergen Mang <juergen.mang@sec.axians.de>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# (C) 2024-2026 Juergen Mang <juergen.mang@sec.axians.de>
 ###############################################################################
 
 ###############################################################################
@@ -13,13 +14,15 @@
 # @param {string} expected Expected value
 # @returns {string} Test result
 proc test_json_get { json path expected } {
-    set len -1 ; # Length of returned token
-    set token ""
-    set idx [call json::json_get $json $path len]
+    set token [call json::json_get $json $path]
+    set idx [lindex $token 0]
+    set len [lindex $token 1]
     if { $idx >= 0 } {
-        set token [string range $json $idx [expr {$idx + $len - 1}]]
+        set str [string range $json $idx [expr {$idx + $len - 1}]]
+    } else {
+        set str ""
     }
-    if { ($token eq "") || ($token ne $expected && $expected ne "") } {
+    if { ($str eq "") || ($str ne $expected && $expected ne "") } {
         return "<tr><td colspan=\"2\">$path</td></tr><tr><td>ERROR: $idx</td><td>found: $token, expected: $expected</td></tr>"
     }
     return "<tr><td colspan=\"2\">$path</td></tr><tr><td>OK: $idx</td><td>found: $token, expected: $expected</td></tr>"
@@ -44,7 +47,7 @@ when HTTP_REQUEST priority 100 {
     set response "<html><head><title>Json Test</title></head><body>"
     append response "<h2>Test 1</h2>"
     set json "{\"text1\":\"string1\",\"object1\":{\"text2\":\"string2\",\"array\":\[\"mem1\",\"mem2\"\],\"bool1\":false},\"num1\":1,\"bool2\":true}"
-    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
+    append response "<table border=1><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.text1" "\"string1\""]
     append response [call test_json_get $json "$.object1.text2" "\"string2\""]
     append response [call test_json_get $json "$.object1.bool1" "false"]
@@ -58,13 +61,13 @@ when HTTP_REQUEST priority 100 {
 
     append response "<h2>Test 2</h2>"
     set json "{\"text1\":\"string1\",\"object1\":{\"text2\":\"string2\",\"array1\":\[\"mem1\",\"mem2\"\]},\"num1\":1,\"bool2\":true}"
-    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
+    append response "<table border=1><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.num1" "1"]
     append response "</table>"
 
     append response "<h2>Test 3</h2>"
     set json "{\"object1\": {\"array1\":\[{\"v1\":\"mem1\",\"v2\":\"mem2\"},{\"v3\":\"mem3\"}\],\"num1\":1},\"bool2\":true}"
-    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
+    append response "<table border=1><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.object1.num1" "1"]
     append response [call test_json_get $json "$.object1.array1" ""]
     append response [call test_json_get $json "$.object1.array1\[0\].v1" "\"mem1\""]
@@ -75,14 +78,14 @@ when HTTP_REQUEST priority 100 {
 
     append response "<h2>Test 4</h2>"
     set json "{\"key1\":\"val\\\"ue1\",\"key\\n2\":\"value2\"}"
-    append response "<table><tr><td colspan=\"2\">$json</td></tr>"
+    append response "<table border=1><tr><td colspan=\"2\">$json</td></tr>"
     append response [call test_json_get $json "$.key1" "\"val\\\"ue1\""]
     append response [call test_json_get $json "$.key\\n2" "\"value2\""]
     append response "</table>"
 
     append response "<h2>Test 5</h2>"
     set json [ifile get "test-json"]
-    append response "<table><tr><td colspan=\"2\">Large json file</td></tr>"
+    append response "<table border=1><tr><td colspan=\"2\">Large json file</td></tr>"
     append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]
     append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]
     append response [call test_json_get $json "$.policy.signature-settings.signatureStaging" "false"]
@@ -92,7 +95,7 @@ when HTTP_REQUEST priority 100 {
     append response "</table>"
 
     append response "<h2>Test 6</h2>"
-    append response "<table>"
+    append response "<table border=1>"
     append response [call test_json_decode "\"test\"test\"" "test\"test"]
     append response "</table>"
 
