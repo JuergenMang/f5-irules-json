@@ -43,7 +43,7 @@ proc json_get { buffer path } {
     set path_pos_max [expr {$path_len - 1}]
     set nesting ""            ; # Holds the nesting chars
     set i 0                   ; # Current offset in buffer
-    set j 0                   ; # Offset in `s` we're looking for (return value)
+    set j 0                   ; # Offset in `buffer` we're looking for (return value)
     set depth 0               ; # Current depth (nesting level)
     set ed 0                  ; # Expected depth
     set pos 1                 ; # Current position in `path`
