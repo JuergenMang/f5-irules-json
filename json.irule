@@ -9,13 +9,8 @@
 ###############################################################################
 
 when RULE_INIT priority 500 {
-    set static::JSON_MAX_DEPTH 10
-    set static::JSON_TOO_DEEP -1
-    set static::JSON_INVALID -2
-    set static::JSON_NOT_FOUND -3
-    set static::JSON_PATH_INVALID -4
     set static::JSON_ESCAPES [list "b" "f" "n" "r" "t" "\\" "\""]
-
+    set static::JSON_MAX_DEPTH 10
     set static::JSON_EXPECT_VALUE 0
     set static::JSON_EXPECT_KEY 1
     set static::JSON_EXPECT_COLON 2
@@ -23,18 +18,13 @@ when RULE_INIT priority 500 {
 }
 
 ###############################################################################
-# Returns the index and token length (as a list) for an json key defined by an
-# JsonPath expression in dot notation.
+# Returns the value for an json key defined by an JsonPath expression in dot
+# notation.
 # The token type can be easily determined by looking at the first character.
 #
 # @param {string} buffer Json string to parse
 # @param {string} path JsonPath expression
-# @returns {integer} Index of found token in buffer on success, else
-#                    -1: Json nesting is too deep
-#                    -2: Invalid Json
-#                    -3: Key not found
-#                    -4: Invalid/Unsupported JsonPath expression
-# @returns {integer} Length of found token or -1 on error
+# @returns {string} Token value on success, else empty string
 proc json_get { buffer path } {
     set expecting $static::JSON_EXPECT_VALUE
     set buffer_len [string length $buffer]
@@ -52,7 +42,17 @@ proc json_get { buffer path } {
 
     set toklen -1
     if { [string index $path 0] ne "$" } {
-        return [list $static::JSON_PATH_INVALID -1]
+        #log local0. "JSON_PATH_INVALID: $path"
+        return ""
+    }
+
+    if { [string range $buffer 0 0] ne "\{" } {
+        #log local0. "JSON_INVALID: $path"
+        return ""
+    }
+    if { [string range $buffer end end] ne "\}" } {
+        #log local0. "JSON_INVALID: $path"
+        return ""
     }
 
     for { set i 0 } { $i < $buffer_len } { incr i } {
@@ -75,7 +75,8 @@ proc json_get { buffer path } {
                 }
                 if { $c eq "\{" } {
                     if { $depth > $static::JSON_MAX_DEPTH } {
-                        return [list $static::JSON_TOO_DEEP -1]
+                        #log local0. "JSON_TOO_DEEP: $path"
+                        return ""
                     }
                     if { ($depth == $ed) && ($p eq ".") && ($ci == $ei) } {
                         # If we start the object, reset array indices
@@ -90,7 +91,8 @@ proc json_get { buffer path } {
                     continue
                 } elseif { $c eq "\[" } {
                     if { $depth > $static::JSON_MAX_DEPTH } {
-                        return [list $static::JSON_TOO_DEEP -1]
+                        #log local0. "JSON_TOO_DEEP: $path"
+                        return ""
                     }
                     if { ($depth == $ed) && ($p eq "\[") && ($ei == $ci) } {
                         incr ed
@@ -101,7 +103,8 @@ proc json_get { buffer path } {
                             if { [string is double $p] } {
                                 set ei [expr { $ei * 10 + $p }]
                             } else {
-                                return [list $static::JSON_PATH_INVALID $toklen]
+                                #log local0. "JSON_INVALID: $path"
+                                return ""
                             }
                         }
                         if { $pos < $path_pos_max } {
@@ -114,23 +117,24 @@ proc json_get { buffer path } {
                 } elseif { ($c eq "\]") && ($depth > 0) } {
                     # Empty array
                     if { ($depth == $ed) && ($ci != $ei) } {
-                        return [list $static::JSON_NOT_FOUND -1]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\[" } {
-                        return [list $static::JSON_INVALID -1]
+                        #log local0. "JSON_INVALID: $path"
+                        return ""
                     }
                     set nesting [lrange $nesting 0 end-1]
-                    set depth [expr {$depth - 1}]
+                    incr depth -1
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
-                        set toklen [expr {$i - $j + 1}]
-                        return [list $j $toklen]
+                        return [string range $buffer $j $i]
                     }
                 } elseif { ($c eq "t") && ([string range $buffer $i [expr {$i + 3}]] eq "true") } {
-                    set i [expr {$i + 3}]
+                    incr i 3
                 } elseif { ($c eq "n") && ([string range $buffer $i [expr {$i + 3}]] eq "null") } {
-                    set i [expr {$i + 3}]
+                    incr i 3
                 } elseif { ($c eq "f") && ([string range $buffer $i [expr {$i + 4}]] eq "false") } {
-                   set i [expr {$i + 4}]
+                   incr i 4
                 } elseif { ($c eq "-") || ([string is double $c]) } {
                     while { ($c eq "-") || ($c eq ".") || ([string is double $c]) } {
                         incr i
@@ -145,7 +149,8 @@ proc json_get { buffer path } {
                             # Json escape
                             set nc [string index $buffer [expr {$i + 1}]]
                             if { [lsearch -exact $static::JSON_ESCAPES $nc] == -1 } {
-                                return [list $static::JSON_INVALID $toklen]
+                                #log local0. "JSON_INVALID: $path"
+                                return ""
                             }
                             incr i
                         } elseif { $c eq "\"" } {
@@ -154,14 +159,15 @@ proc json_get { buffer path } {
                         incr i
                     }
                     if { $i == $buffer_pos_max } {
-                        return [list $static::JSON_INVALID -1]
+                        #log local0. "JSON_INVALID: $path"
+                        return ""
                     }
                 } else {
-                    return [list $static::JSON_INVALID -1]
+                    #log local0. "JSON_INVALID: $path"
+                    return ""
                 }
                 if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
-                    set toklen [expr {$i - $j + 1}]
-                    return [list $j $toklen]
+                    return [string range $buffer $j $i]
                 }
                 if { ($depth == $ed) && ($ei >= 0) } {
                     incr ci
@@ -179,7 +185,8 @@ proc json_get { buffer path } {
                             # Json escape
                             set nc [string index $buffer [expr {$s + 1}]]
                             if { [lsearch -exact $static::JSON_ESCAPES $nc] == -1 } {
-                                return [list $static::JSON_INVALID $toklen]
+                                #log local0. "JSON_INVALID: $path"
+                                return ""
                             }
                             incr s
                             incr n
@@ -190,17 +197,21 @@ proc json_get { buffer path } {
                         incr n
                     }
                     if { $s == $buffer_pos_max } {
-                        return [list $static::JSON_INVALID $toklen]
+                        #log local0. "JSON_INVALID: $path"
+                        return ""
                     }
                     unset -- s
                     if { [expr {$i + $n}] == $buffer_pos_max } {
-                        return [list $static::JSON_NOT_FOUND $toklen]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     if { $depth < $ed } {
-                        return [list $static::JSON_NOT_FOUND $toklen]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     if { ($depth == $ed) && ([string index $path [expr {$pos - 1}]] ne ".") } {
-                        return [list $static::JSON_NOT_FOUND $toklen]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     #log local0. "\tK path:$path, pos:$pos, depth:$depth, n:$n, ed:$ed, ci:$ci, ei:$ei"
                     if { ($depth == $ed) && ([string index $path [expr {$pos - 1}]] eq ".") &&
@@ -211,30 +222,32 @@ proc json_get { buffer path } {
                             ([string index $path [expr {$pos + $n}]] eq "\[")
                          )
                     } {
-                        set pos [expr {$pos + $n}]
+                        incr pos $n
                     }
                     set i [expr {$i + $n + 1}]
                     set expecting $static::JSON_EXPECT_COLON
                 } elseif { $c eq "\}" } {
                     # Empty object
                     if { ($depth == $ed) && ($ci != $ei) } {
-                        return [list $static::JSON_NOT_FOUND -1]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     if { [lindex $nesting [expr {$depth - 1}]] ne "\{" } {
-                        return [list $static::JSON_INVALID -1]
+                        #log local0. "JSON_INVALID: $path"
+                        return ""
                     }
                     set nesting [lrange $nesting 0 end-1]
-                    set depth [expr {$depth - 1}]
+                    incr depth -1
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
-                        set toklen [expr {$i - $j + 1}]
-                        return [list $j $toklen]
+                        return [string range $buffer $j $i]
                     }
                     set expecting $static::JSON_EXPECT_COMMA_OR_EOO
                     if { ($depth == $ed) && ($ei >= 0) } {
                         incr ci
                     }
                 } else {
-                    return [list $static::JSON_INVALID $toklen]
+                    #log local0. "JSON_INVALID: $path"
+                    return ""
                 }
             }
             2 {
@@ -242,13 +255,15 @@ proc json_get { buffer path } {
                 if { $c eq ":" } {
                     set expecting $static::JSON_EXPECT_VALUE
                 } else {
-                    return [list $static::JSON_INVALID $toklen]
+                    #log local0. "JSON_INVALID: $path"
+                    return ""
                 }
             }
             3 {
                 # JSON_EXPECT_COMMA_OR_EOO
                 if { $depth <= 0 } {
-                    return [list $static::JSON_INVALID -1]
+                    #log local0. "JSON_INVALID: $path"
+                    return ""
                 } elseif { $c eq "," } {
                     if { [lindex $nesting [expr {$depth - 1}]] eq "\{" } {
                         set expecting $static::JSON_EXPECT_KEY
@@ -257,51 +272,41 @@ proc json_get { buffer path } {
                     }
                 } elseif { ($c eq "\]") || ($c eq "\}") } {
                     if { ($depth == $ed) && ($c eq "\}") && ([string index $path [expr {$pos - 1}]] eq ".") } {
-                        return [list $static::JSON_NOT_FOUND $toklen]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     if { ($depth == $ed) && ($c eq "\]") && ([string index $path [expr {$pos - 1}]] eq ",") } {
-                        return [list $static::JSON_NOT_FOUND $toklen]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     if { ($depth == $ed) && ($ci != $ei) } {
-                        return [list $static::JSON_NOT_FOUND $toklen]
+                        #log local0. "JSON_NOT_FOUND: $path"
+                        return ""
                     }
                     if { ($c eq "\]") && ([lindex $nesting [expr {$depth - 1}]] ne "\[") } {
-                        return [list $static::JSON_INVALID $toklen]
+                        #log local0. "JSON_INVALID: $path"
+                        return ""
                     }
                     if { ($c eq "\}") && ([lindex $nesting [expr {$depth - 1}]] ne "\{") } {
-                        return [list $static::JSON_INVALID $toklen]
+                        #log local0. "JSON_INVALID: $path"
+                        return ""
                     }
                     set nesting [lrange $nesting 0 end-1]
-                    set depth [expr {$depth - 1}]
+                    incr depth -1
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
-                        set toklen [expr {$i - $j + 1}]
-                        return [list $j $toklen]
+                        return [string range $buffer $j $i]
                     }
                     if { ($depth == $ed) && ($ei >= 0) } {
                         incr ci
                     }
                 } else {
-                    return [list $static::JSON_INVALID $toklen]
+                    #log local0. "JSON_INVALID: $path"
+                    return ""
                 }
             }
         }
     }
-    return [list $static::JSON_NOT_FOUND $toklen]
-}
-
-###############################################################################
-# Gets the token from the json string defined by path.
-#
-# @param {string} json Json string to extract the token
-# @param {number} path JsonPath expression
-# @returns {string} The extracted value or empty string on error
-proc json_get_tok { json path } {
-    set token [call json_get $json $path]
-    set idx [lindex $token 0]
-    set len [lindex $token 1]
-    if { $idx >= 0 } {
-        return [string range $json $idx [expr {$idx + $len - 1}]]
-    }
+    #log local0. "JSON_NOT_FOUND: $path"
     return ""
 }
 

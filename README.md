@@ -32,35 +32,21 @@ set json "{\"object1\": {\"key\":\"value\",\"array1\":\[{\"v1\":\"mem1\",\"v2\":
 # Set the JsonPath expression
 set path "$.object1.key"
 
-# Get the index and length of a token described by path.
-# A positive return value represents the found index, a negative value describes an error:
-#   -1: Json nesting is too deep
-#   -2: Invalid Json
-#   -3: Key not found
-#   -4: Invalid/Unsupported JsonPath expression
-set token [call json::json_get $json $path ]
-set idx [lindex $token 0]
-set len [lindex $token 1]
-set token_value [string range $json $idx [expr {$idx + $len - 1}]]
+# Get the value
+set value [call json::json_get $json $path]
 
-# Get the token described by path.
-# - String tokens are enclosed by quotes.
-# - Array tokens are enclosed by square braces.
-# - Object tokens are enclosed by curly braces.
-set token_value [call json::json_get_tok $json $path]
-
-# Get the type of the token.
+# Get the type of the value.
 # This is a simply lookup of the first char of the token.
 # Type can be: string, array, object, false, true, null, number or invalid
-set type [call json::json_get_type $token_value ]
+set type [call json::json_get_type $value]
 
 # Decodes a string token
-set decoded [call json::json_decode_str $token_value ]
+set decoded [call json::json_decode_str $value]
 ```
 
 ## Test
 
-1. Create an iFile `test-json` from the `test-json.ifile`.
+1. Create an iFile `ifile_test-json` from the `test-json.ifile`.
 2. Attach the `test.irule` to a Virtual Server with an associated http profile.
 3. Send a http request to it.
 

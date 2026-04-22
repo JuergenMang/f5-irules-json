@@ -1,0 +1,44 @@
+{
+    "$schema": "https://raw.githubusercontent.com/F5Networks/f5-appsvcs-extension/main/schema/latest/as3-schema.json",
+    "class": "AS3",
+    "action": "deploy",
+    "persist": true,
+    "declaration": {
+        "class": "ADC",
+        "schemaVersion": "3.56.0",
+        "remark": "",
+        "json": {
+            "class": "Tenant",
+            "test": {
+                "class": "Application",
+                "vs-test": {
+                    "class": "Service_HTTP",
+                    "virtualAddresses": [ "10.125.245.65" ],
+                    "profileHTTP": "basic",
+                    "iRules": [
+                        { "use": "test-json"}
+                    ]
+                },
+                "ifile_test-json": {
+                    "class": "iFile",
+                    "ignoreChanges": false,
+                    "iFile": {
+                        "base64": "{{MO_INCLUDE_BASE64 'test-json.ifile'}}"
+                    }
+                },
+                "json": {
+                    "class": "iRule",
+                    "iRule": {
+                        "base64": "{{MO_INCLUDE_BASE64 'json.irule'}}"
+                    }
+                },
+                "test-json": {
+                    "class": "iRule",
+                    "iRule": {
+                        "base64": "{{MO_INCLUDE_BASE64 'test-json.irule'}}"
+                    }
+                }
+            }
+        }
+    }
+}

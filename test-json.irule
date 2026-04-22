@@ -14,18 +14,11 @@
 # @param {string} expected Expected value
 # @returns {string} Test result
 proc test_json_get { json path expected } {
-    set token [call json::json_get $json $path]
-    set idx [lindex $token 0]
-    set len [lindex $token 1]
-    if { $idx >= 0 } {
-        set str [string range $json $idx [expr {$idx + $len - 1}]]
-    } else {
-        set str ""
+    set value [call /json/test/json::json_get $json $path]
+    if { ($value eq "") || ($value ne $expected && $expected ne "") } {
+        return "<tr><td colspan=\"2\">$path</td></tr><tr><td style=\"color:red\">ERROR</td><td>found: $value, expected: $expected</td></tr>"
     }
-    if { ($str eq "") || ($str ne $expected && $expected ne "") } {
-        return "<tr><td colspan=\"2\">$path</td></tr><tr><td>ERROR: $idx</td><td>found: $token, expected: $expected</td></tr>"
-    }
-    return "<tr><td colspan=\"2\">$path</td></tr><tr><td>OK: $idx</td><td>found: $token, expected: $expected</td></tr>"
+    return "<tr><td colspan=\"2\">$path</td></tr><tr><td style=\"color:green\">OK</td><td>found: $value, expected: $expected</td></tr>"
 }
 
 ###############################################################################
@@ -36,14 +29,15 @@ proc test_json_get { json path expected } {
 # @returns {string} Test result
 proc test_json_decode { token expected } {
     puts "- decode: $token"
-    set decoded [call json::json_decode_str "\"test\"test\""]
+    set decoded [call /json/test/json::json_decode_str "\"test\"test\""]
     if { $decoded eq "test\"test" } {
-        return "<tr><td>OK</td><td>decoded $decoded, expected: $expected</td></tr>"
+        return "<tr><td style=\"color:green\">OK</td><td>decoded $decoded, expected: $expected</td></tr>"
     }
-    return "<tr><td>ERROR</td><td>decoded $decoded, expected: $expected</td></tr>"
+    return "<tr><td style=\"color:red\">ERROR</td><td>decoded $decoded, expected: $expected</td></tr>"
 }
 
 when HTTP_REQUEST priority 100 {
+    set as3_path [URI::path [virtual name]]
     set response "<html><head><title>Json Test</title></head><body>"
     append response "<h2>Test 1</h2>"
     set json "{\"text1\":\"string1\",\"object1\":{\"text2\":\"string2\",\"array\":\[\"mem1\",\"mem2\"\],\"bool1\":false},\"num1\":1,\"bool2\":true}"
@@ -84,7 +78,7 @@ when HTTP_REQUEST priority 100 {
     append response "</table>"
 
     append response "<h2>Test 5</h2>"
-    set json [ifile get "test-json"]
+    set json [ifile get "${as3_path}ifile_test-json"]
     append response "<table border=1><tr><td colspan=\"2\">Large json file</td></tr>"
     append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]
     append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]
