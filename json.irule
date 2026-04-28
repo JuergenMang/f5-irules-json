@@ -1,4 +1,4 @@
-###############################################################################
+#################################################################
 # Simple Json library for the F5 iRules language to parse and decode Json.
 #
 # This library is inspired by the Json parser from mongoose:
@@ -31,9 +31,9 @@ proc json_get { buffer path } {
     set buffer_pos_max [expr {$buffer_len - 1}]
     set path_len [string length $path]
     set path_pos_max [expr {$path_len - 1}]
-    set nesting ""            ; # Holds the nesting chars
+    set nesting [list]        ; # Holds the nesting chars
     set i 0                   ; # Current offset in buffer
-    set j 0                   ; # Offset in `buffer` we're looking for (return value)
+    set j 0                   ; # Offset in `buffer` we're looking for (start index of return value)
     set depth 0               ; # Current depth (nesting level)
     set ed 0                  ; # Expected depth
     set pos 1                 ; # Current position in `path`
@@ -124,7 +124,7 @@ proc json_get { buffer path } {
                         #log local0. "JSON_INVALID: $path"
                         return ""
                     }
-                    set nesting [lrange $nesting 0 end-1]
+                    lset nesting [lrange $nesting 0 end-1]
                     incr depth -1
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         return [string range $buffer $j $i]
@@ -236,7 +236,7 @@ proc json_get { buffer path } {
                         #log local0. "JSON_INVALID: $path"
                         return ""
                     }
-                    set nesting [lrange $nesting 0 end-1]
+                    lset nesting [lrange $nesting 0 end-1]
                     incr depth -1
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         return [string range $buffer $j $i]
@@ -291,7 +291,7 @@ proc json_get { buffer path } {
                         #log local0. "JSON_INVALID: $path"
                         return ""
                     }
-                    set nesting [lrange $nesting 0 end-1]
+                    lset nesting [lrange $nesting 0 end-1]
                     incr depth -1
                     if { ($depth == $ed) && ($pos >= $path_pos_max) && ($ci == $ei) } {
                         return [string range $buffer $j $i]
@@ -363,4 +363,95 @@ proc json_decode_str { token } {
         }
     }
     return $decoded
+}
+
+###############################################################################
+# Parses a Json array.
+#
+# @param {string} buffer Json array string to decode
+# @returns {list} Parsed array elements as JSON tokens or empty list on error
+proc json_parse_array { buffer } {
+    set len [string length $buffer]
+
+    # Must be an array
+    if { $len < 2 } {
+        return [list]
+    }
+    if { [string index $buffer 0] ne "\[" } {
+        return [list]
+    }
+    if { [string index $buffer end] ne "\]" } {
+        return [list]
+    }
+
+    set result [list]
+    set depth 0
+    set start -1
+    set buffer_len [expr {$len - 2}]
+
+    for { set i 1 } { $i <= $buffer_len } { incr i } {
+        set c [string index $buffer $i]
+
+        # Skip whitespace at top level
+        if { $start < 0 } {
+            switch -exact -- $c {
+                " " -
+                "\t" -
+                "\n" -
+                "\r" {
+                    continue
+                }
+            }
+            set start $i
+        }
+
+        switch -exact -- $c {
+            "\"" {
+                # String: skip until closing quote
+                incr i
+                while { $i <= $buffer_len } {
+                    set c [string index $buffer $i]
+                    if { $c eq "\\" } {
+                        incr i 2
+                        continue
+                    }
+                    if { $c eq "\"" } {
+                        break
+                    }
+                    incr i
+                }
+            }
+            "\[" -
+            "\{" {
+                incr depth
+                if { $depth > $static::JSON_MAX_DEPTH } {
+                    return [list]
+                }
+            }
+            "\]" -
+            "\}" {
+                incr depth -1
+            }
+            "," {
+                # Element separator only at depth 0
+                if { $depth == 0 } {
+                    set elem [string trim [string range $buffer $start [expr {$i - 1}]]]
+                    if { $elem ne "" } {
+                        lappend result $elem
+                    }
+                    set start -1
+                }
+            }
+        }
+    }
+
+    # Final element
+    if { $start >= 0 } {
+        set elem [string trim [string range $buffer $start $buffer_len]]
+        if { $elem ne "" } {
+            lappend result $elem
+        }
+    }
+
+    return $result
 }

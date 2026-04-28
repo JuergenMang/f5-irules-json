@@ -1,5 +1,5 @@
 ###############################################################################
-# Testsuite for the Json library for the F5 iRules language to parse and decode
+# Testsuite for the Json library for the F5 iRules language to parse && decode
 # Json.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -15,25 +15,138 @@
 # @returns {string} Test result
 proc test_json_get { json path expected } {
     set value [call /json/test/json::json_get $json $path]
-    if { ($value eq "") || ($value ne $expected && $expected ne "") } {
-        return "<tr><td colspan=\"2\">$path</td></tr><tr><td style=\"color:red\">ERROR</td><td>found: $value, expected: $expected</td></tr>"
+    if { ($value eq "") || \
+         ($value ne $expected && $expected ne "") } \
+    {
+        return "<tr><td colspan=\"2\">$path</td></tr><tr><td style=\"background-color:red; color:white;\">ERROR</td><td>found: $value, expected: $expected</td></tr>"
     }
-    return "<tr><td colspan=\"2\">$path</td></tr><tr><td style=\"color:green\">OK</td><td>found: $value, expected: $expected</td></tr>"
+    return "<tr><td colspan=\"2\">$path</td></tr><tr><td style=\"background-color:green; color:white;\">OK</td><td>found: $value, expected: $expected</td></tr>"
 }
 
 ###############################################################################
-# Simple json decode test function
+# json_decode_str test function
 #
 # @param {string} token Json string to decode
 # @param {string} expected Expected value
 # @returns {string} Test result
 proc test_json_decode { token expected } {
-    puts "- decode: $token"
     set decoded [call /json/test/json::json_decode_str "\"test\"test\""]
     if { $decoded eq "test\"test" } {
-        return "<tr><td style=\"color:green\">OK</td><td>decoded $decoded, expected: $expected</td></tr>"
+        return "<tr><td style=\"background-color:green; color:white;\">OK</td><td>decoded $decoded, expected: $expected</td></tr>"
     }
-    return "<tr><td style=\"color:red\">ERROR</td><td>decoded $decoded, expected: $expected</td></tr>"
+    return "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>decoded $decoded, expected: $expected</td></tr>"
+}
+
+###############################################################################
+# json_parse_array test function
+#
+# @param {string} token Json string to parse
+# @param {string} expected Expected value
+# @returns {string} Test result
+proc test_json_parse_array { } {
+    set result ""
+    # Simple string array
+    set buffer {["string1","string2"]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    if { ([lindex $parsed 0] eq "\"string1\"") &&
+         ([lindex $parsed 1] eq "\"string2\"")} \
+    {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer</td></tr>"
+    }
+
+    # Mixed primitive types
+    set buffer {[1,true,false,null]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    if { ([lindex $parsed 0] eq "1") &&
+         ([lindex $parsed 1] eq "true") &&
+         ([lindex $parsed 2] eq "false") &&
+         ([lindex $parsed 3] eq "null") } \
+    {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer</td></tr>"
+    }
+
+    # Nested array
+    set buffer {[[1,2],[3,4]]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    if { ([lindex $parsed 0] eq {[1,2]}) &&
+         ([lindex $parsed 1] eq {[3,4]}) } \
+    {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer</td></tr>"
+    }
+
+    # Object elements
+    set buffer {[{"a":1},{"b":2}]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    if { ([lindex $parsed 0] eq "{\"a\":1}") &&
+         ([lindex $parsed 1] eq "{\"b\":2}") } \
+    {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer</td></tr>"
+    }
+
+    # Deeply nested mix of types
+    set buffer {[1,"x",[2,{"a":3}],null]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    if { ([lindex $parsed 0] eq "1") &&
+         ([lindex $parsed 1] eq "\"x\"") &&
+         ([lindex $parsed 2] eq "\[2,{\"a\":3}\]") &&
+         ([lindex $parsed 3] eq "null") } \
+    {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer</td></tr>"
+    }
+
+    # Strings with escaped characters
+    set buffer {["a\"b","c\\d"]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    if { ([lindex $parsed 0] eq "\"a\\\"b\"") &&
+        ([lindex $parsed 1] eq "\"c\\\\d\"") } \
+    {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer</td></tr>"
+    }
+
+    # Whitespace robustness
+    set buffer {[ 1 ,  "x" , [ 2 , 3 ] , null ]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    set error ""
+    if { [lindex $parsed 0] ne "1" } {
+        set error "element 0 failure::[lindex $parsed 0]::"
+    }
+    if { [lindex $parsed 1] ne "\"x\"" } {
+        set error "element 1 failure::[lindex $parsed 1]::"
+    }
+    if { [lindex $parsed 2] ne "\[ 2 , 3 \]" } {
+        set error "element 2 failure::[lindex $parsed 2]::"
+    }
+    if { [lindex $parsed 3] ne "null" } {
+        set error "element 3 failure::[lindex $parsed 3]::"
+    }
+
+    if { $error eq "" } {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer - $error</td></tr>"
+    }
+
+    # Empty array
+    set buffer {[]}
+    set parsed [call /json/test/json::json_parse_array $buffer]
+    if { [llength $parsed] == 0 } {
+        append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
+    } else {
+        append result "<tr><td style=\"background-color:red; color:white;\">ERROR</td><td>$buffer</td></tr>"
+    }
+    return $result
 }
 
 when HTTP_REQUEST priority 100 {
@@ -88,9 +201,14 @@ when HTTP_REQUEST priority 100 {
     append response [call test_json_get $json "$.policy.urls\[2\].urlContentProfiles\[0\].headerValue" "\"text/html\""]
     append response "</table>"
 
-    append response "<h2>Test 6</h2>"
+    append response "<h2>Test 6 - json_decode_str</h2>"
     append response "<table border=1>"
     append response [call test_json_decode "\"test\"test\"" "test\"test"]
+    append response "</table>"
+
+    append response "<h2>Test 7 - json_parse_array</h2>"
+    append response "<table border=1>"
+    append response [call test_json_parse_array]
     append response "</table>"
 
     append response "</body></html>"
