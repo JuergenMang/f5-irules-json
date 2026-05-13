@@ -40,7 +40,6 @@ proc json_get { buffer path } {
     set ci -1                 ; # Current index in array
     set ei -1                 ; # Expected index in array
 
-    set toklen -1
     if { [string index $path 0] ne "$" } {
         #log local0. "JSON_PATH_INVALID: $path"
         return ""
