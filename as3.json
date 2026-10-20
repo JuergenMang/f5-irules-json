@@ -29,7 +29,7 @@
                 "json": {
                     "class": "iRule",
                     "iRule": {
-                        "base64": "{{MO_INCLUDE_BASE64 'json.irule'}}"
+                        "base64": "{{MO_INCLUDE_BASE64 'irule-lib-json.irule'}}"
                     }
                 },
                 "test-json": {
