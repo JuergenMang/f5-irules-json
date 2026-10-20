@@ -23,7 +23,7 @@ Only the dot-notation and a subset of operators are supported.
 
 ## Usage
 
-Save the `json.irule` file as an iRule named `json`. Do not attach it to any virtual server. It defines only some procs that can be called by other iRules.
+Save the `irule-lib-json.irule` file as an iRule named `irule-lib-json`. Do not attach it to any virtual server. It defines only some procs that can be called by other iRules.
 
 ```tcl
 # Json to parse
@@ -33,15 +33,15 @@ set json "{\"object1\": {\"key\":\"value\",\"array1\":\[{\"v1\":\"mem1\",\"v2\":
 set path "$.object1.key"
 
 # Get the value
-set value [call json::json_get $json $path]
+set value [call irule-lib-json::json_get $json $path]
 
 # Get the type of the value.
 # This is a simply lookup of the first char of the token.
 # Type can be: string, array, object, false, true, null, number or invalid
-set type [call json::json_get_type $value]
+set type [call irule-lib-json::json_get_type $value]
 
 # Decodes a string token
-set decoded [call json::json_decode_str $value]
+set decoded [call irule-lib-json::json_decode_str $value]
 ```
 
 ## Test

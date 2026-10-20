@@ -9,6 +9,15 @@
         "remark": "",
         "json": {
             "class": "Tenant",
+            "lib": {
+                "class": "Application",
+                "irule-lib-json": {
+                    "class": "iRule",
+                    "iRule": {
+                        "base64": "{{MO_INCLUDE_BASE64 'irule-lib-json.irule'}}"
+                    }
+                }
+            },
             "test": {
                 "class": "Application",
                 "vs-test": {
@@ -26,16 +35,10 @@
                         "base64": "{{MO_INCLUDE_BASE64 'test-json.ifile'}}"
                     }
                 },
-                "json": {
+                "irule-test-json": {
                     "class": "iRule",
                     "iRule": {
-                        "base64": "{{MO_INCLUDE_BASE64 'irule-lib-json.irule'}}"
-                    }
-                },
-                "test-json": {
-                    "class": "iRule",
-                    "iRule": {
-                        "base64": "{{MO_INCLUDE_BASE64 'test-json.irule'}}"
+                        "base64": "{{MO_INCLUDE_BASE64 'irule-test-json.irule'}}"
                     }
                 }
             }
