@@ -1,3 +1,3 @@
 when RULE_INIT {
-    set static::json_lib_path "/json/lib"
+    set static::json_lib "/json/lib/irule-lib-json"
 }

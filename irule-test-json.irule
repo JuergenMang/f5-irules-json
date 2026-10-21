@@ -14,7 +14,7 @@
 # @param {string} expected Expected value
 # @returns {string} Test result
 proc test_json_get { json path expected } {
-    set value [call ${static::json_lib_path}/irule-lib-json::json_get $json $path]
+    set value [call ${static::json_lib}::json_get $json $path]
     if { ($value eq "") || \
          ($value ne $expected && $expected ne "") } \
     {
@@ -30,7 +30,7 @@ proc test_json_get { json path expected } {
 # @param {string} expected Expected value
 # @returns {string} Test result
 proc test_json_decode { token expected } {
-    set decoded [call ${static::json_lib_path}/irule-lib-json::json_decode_str "\"test\"test\""]
+    set decoded [call ${static::json_lib}::json_decode_str "\"test\"test\""]
     if { $decoded eq "test\"test" } {
         return "<tr><td style=\"background-color:green; color:white;\">OK</td><td>decoded $decoded, expected: $expected</td></tr>"
     }
@@ -47,7 +47,7 @@ proc test_json_parse_array { } {
     set result ""
     # Simple string array
     set buffer {["string1","string2"]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     if { ([lindex $parsed 0] eq "\"string1\"") &&
          ([lindex $parsed 1] eq "\"string2\"")} \
     {
@@ -58,7 +58,7 @@ proc test_json_parse_array { } {
 
     # Mixed primitive types
     set buffer {[1,true,false,null]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     if { ([lindex $parsed 0] eq "1") &&
          ([lindex $parsed 1] eq "true") &&
          ([lindex $parsed 2] eq "false") &&
@@ -71,7 +71,7 @@ proc test_json_parse_array { } {
 
     # Nested array
     set buffer {[[1,2],[3,4]]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     if { ([lindex $parsed 0] eq {[1,2]}) &&
          ([lindex $parsed 1] eq {[3,4]}) } \
     {
@@ -82,7 +82,7 @@ proc test_json_parse_array { } {
 
     # Object elements
     set buffer {[{"a":1},{"b":2}]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     if { ([lindex $parsed 0] eq "{\"a\":1}") &&
          ([lindex $parsed 1] eq "{\"b\":2}") } \
     {
@@ -93,7 +93,7 @@ proc test_json_parse_array { } {
 
     # Deeply nested mix of types
     set buffer {[1,"x",[2,{"a":3}],null]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     if { ([lindex $parsed 0] eq "1") &&
          ([lindex $parsed 1] eq "\"x\"") &&
          ([lindex $parsed 2] eq "\[2,{\"a\":3}\]") &&
@@ -106,7 +106,7 @@ proc test_json_parse_array { } {
 
     # Strings with escaped characters
     set buffer {["a\"b","c\\d"]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     if { ([lindex $parsed 0] eq "\"a\\\"b\"") &&
         ([lindex $parsed 1] eq "\"c\\\\d\"") } \
     {
@@ -117,7 +117,7 @@ proc test_json_parse_array { } {
 
     # Whitespace robustness
     set buffer {[ 1 ,  "x" , [ 2 , 3 ] , null ]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     set error ""
     if { [lindex $parsed 0] ne "1" } {
         set error "element 0 failure::[lindex $parsed 0]::"
@@ -140,7 +140,7 @@ proc test_json_parse_array { } {
 
     # Empty array
     set buffer {[]}
-    set parsed [call ${static::json_lib_path}/irule-lib-json::json_parse_array $buffer]
+    set parsed [call ${static::json_lib}::json_parse_array $buffer]
     if { [llength $parsed] == 0 } {
         append result "<tr><td style=\"background-color:green; color:white;\">OK</td><td>$buffer</td></tr>"
     } else {
@@ -191,7 +191,7 @@ when HTTP_REQUEST priority 100 {
     append response "</table>"
 
     append response "<h2>Test 5</h2>"
-    set json [ifile get "${as3_path}ifile_test-json"]
+    set json [ifile get "${as3_path}ifile-test.json"]
     append response "<table border=1><tr><td colspan=\"2\">Large json file</td></tr>"
     append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]
     append response [call test_json_get $json "$.policy.template.name" "\"POLICY_TEMPLATE_RAPID_DEPLOYMENT\""]

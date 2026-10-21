@@ -28,11 +28,11 @@
                         { "use": "test-json"}
                     ]
                 },
-                "ifile_test-json": {
+                "ifile-test.json": {
                     "class": "iFile",
                     "ignoreChanges": false,
                     "iFile": {
-                        "base64": "{{MO_INCLUDE_BASE64 'test-json.ifile'}}"
+                        "base64": "{{MO_INCLUDE_BASE64 'ifile-test.json'}}"
                     }
                 },
                 "irule-test-json": {
